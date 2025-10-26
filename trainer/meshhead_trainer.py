@@ -3,8 +3,22 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import kaolin
 import os
-from pytorch3d.transforms import so3_exponential_map
 import logging
+
+def so3_exponential_map(log_rot):
+    theta = torch.norm(log_rot, dim=-1, keepdim=True)
+    theta = torch.clamp(theta, min=1e-8)
+    w = log_rot / theta
+    wx = torch.zeros(log_rot.shape[0], 3, 3, device=log_rot.device)
+    wx[:, 0, 1] = -w[:, 2]
+    wx[:, 1, 0] = w[:, 2]
+    wx[:, 0, 2] = w[:, 1]
+    wx[:, 2, 0] = -w[:, 1]
+    wx[:, 1, 2] = -w[:, 0]
+    wx[:, 2, 1] = w[:, 0]
+    I = torch.eye(3, device=log_rot.device).unsqueeze(0)
+    R = I + torch.sin(theta).unsqueeze(-1) * wx + (1 - torch.cos(theta)).unsqueeze(-1) * torch.bmm(wx, wx)
+    return R
 from models.mesh_head import MeshHeadModule
 from models.camera_module import CameraModule
 
