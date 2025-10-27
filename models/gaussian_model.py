@@ -2,11 +2,68 @@ import torch
 from torch import nn
 from einops import rearrange
 import tqdm
-from pytorch3d.ops.knn import knn_gather, knn_points
-from pytorch3d.transforms import so3_exponential_map
-from pytorch3d.transforms.rotation_conversions import quaternion_to_matrix, matrix_to_quaternion
 from simple_knn._C import distCUDA2
 from configs.gazegaussian_options import BaseOptions
+
+def knn_points(p1, p2, K=1):
+    dist = torch.cdist(p1, p2)
+    dists, idx = torch.topk(dist, K, dim=-1, largest=False)
+    return dists, idx, None
+
+def so3_exponential_map(log_rot):
+    theta = torch.norm(log_rot, dim=-1, keepdim=True)
+    theta = torch.clamp(theta, min=1e-8)
+    w = log_rot / theta
+    wx = torch.zeros(log_rot.shape[0], 3, 3, device=log_rot.device)
+    wx[:, 0, 1] = -w[:, 2]
+    wx[:, 1, 0] = w[:, 2]
+    wx[:, 0, 2] = w[:, 1]
+    wx[:, 2, 0] = -w[:, 1]
+    wx[:, 1, 2] = -w[:, 0]
+    wx[:, 2, 1] = w[:, 0]
+    I = torch.eye(3, device=log_rot.device).unsqueeze(0)
+    R = I + torch.sin(theta).unsqueeze(-1) * wx + (1 - torch.cos(theta)).unsqueeze(-1) * torch.bmm(wx, wx)
+    return R
+
+def quaternion_to_matrix(quaternions):
+    r, i, j, k = torch.unbind(quaternions, -1)
+    two_s = 2.0 / (quaternions * quaternions).sum(-1)
+    o = torch.stack(
+        (
+            1 - two_s * (j * j + k * k),
+            two_s * (i * j - k * r),
+            two_s * (i * k + j * r),
+            two_s * (i * j + k * r),
+            1 - two_s * (i * i + k * k),
+            two_s * (j * k - i * r),
+            two_s * (i * k - j * r),
+            two_s * (j * k + i * r),
+            1 - two_s * (i * i + j * j),
+        ),
+        -1,
+    )
+    return o.reshape(quaternions.shape[:-1] + (3, 3))
+
+def matrix_to_quaternion(rotation_matrices):
+    batch_dim = rotation_matrices.shape[:-2]
+    m00, m01, m02 = rotation_matrices[..., 0, 0], rotation_matrices[..., 0, 1], rotation_matrices[..., 0, 2]
+    m10, m11, m12 = rotation_matrices[..., 1, 0], rotation_matrices[..., 1, 1], rotation_matrices[..., 1, 2]
+    m20, m21, m22 = rotation_matrices[..., 2, 0], rotation_matrices[..., 2, 1], rotation_matrices[..., 2, 2]
+    
+    trace = m00 + m11 + m22
+    
+    q = torch.zeros((*batch_dim, 4), dtype=rotation_matrices.dtype, device=rotation_matrices.device)
+    
+    q[..., 0] = torch.sqrt(torch.clamp(1.0 + trace, min=0.0)) / 2.0
+    q[..., 1] = torch.sqrt(torch.clamp(1.0 + m00 - m11 - m22, min=0.0)) / 2.0
+    q[..., 2] = torch.sqrt(torch.clamp(1.0 - m00 + m11 - m22, min=0.0)) / 2.0
+    q[..., 3] = torch.sqrt(torch.clamp(1.0 - m00 - m11 + m22, min=0.0)) / 2.0
+    
+    q[..., 1] *= torch.sign(m21 - m12)
+    q[..., 2] *= torch.sign(m02 - m20)
+    q[..., 3] *= torch.sign(m10 - m01)
+    
+    return q
 
 from models.MLP import MLP
 from models.PositionalEmbedding import get_embedder

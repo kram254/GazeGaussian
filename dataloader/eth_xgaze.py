@@ -9,8 +9,34 @@ import h5py
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from pytorch3d.transforms import so3_exponential_map, so3_log_map
 from utils.graphics_utils import getProjectionMatrix, getWorld2View2
+
+def so3_exponential_map(log_rot):
+    theta = torch.norm(log_rot, dim=-1, keepdim=True)
+    theta = torch.clamp(theta, min=1e-8)
+    w = log_rot / theta
+    wx = torch.zeros(log_rot.shape[:-1] + (3, 3), device=log_rot.device, dtype=log_rot.dtype)
+    wx[..., 0, 1] = -w[..., 2]
+    wx[..., 1, 0] = w[..., 2]
+    wx[..., 0, 2] = w[..., 1]
+    wx[..., 2, 0] = -w[..., 1]
+    wx[..., 1, 2] = -w[..., 0]
+    wx[..., 2, 1] = w[..., 0]
+    I = torch.eye(3, device=log_rot.device, dtype=log_rot.dtype)
+    R = I + torch.sin(theta).unsqueeze(-1) * wx + (1 - torch.cos(theta)).unsqueeze(-1) * torch.matmul(wx, wx)
+    return R
+
+def so3_log_map(R):
+    theta = torch.acos(torch.clamp((torch.diagonal(R, dim1=-2, dim2=-1).sum(-1) - 1) / 2, -1, 1))
+    log_rot = torch.zeros_like(R[..., :3, 0])
+    mask = theta.abs() > 1e-4
+    if mask.any():
+        log_rot[mask] = (theta[mask] / (2 * torch.sin(theta[mask]))).unsqueeze(-1) * torch.stack([
+            R[..., 2, 1] - R[..., 1, 2],
+            R[..., 0, 2] - R[..., 2, 0],
+            R[..., 1, 0] - R[..., 0, 1]
+        ], dim=-1)[mask]
+    return log_rot
 
 trans = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 

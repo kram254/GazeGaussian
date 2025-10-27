@@ -1,8 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch3d.ops.knn import knn_gather, knn_points
 from configs.gazegaussian_options import BaseOptions
+
+def knn_points(p1, p2, K=1):
+    dist = torch.cdist(p1, p2)
+    dists, idx = torch.topk(dist, K, dim=-1, largest=False)
+    return dists, idx, None
 from models.neural_renderer import NeuralRenderer
 from models.dit_neural_renderer import DiTNeuralRenderer
 from models.gaussian_model import GaussianModel

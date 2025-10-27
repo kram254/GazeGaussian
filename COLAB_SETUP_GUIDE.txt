@@ -1,0 +1,75 @@
+GAZEGAUSSIAN COLAB SETUP - COMPLETE SOLUTION
+=============================================
+
+PROBLEM RESOLVED:
+The ImportError with diff_gaussian_rasterization was caused by ABI incompatibility 
+between the compiled CUDA extension and the PyTorch version in memory. The symbol 
+_ZN3c1021throwNullDataPtrErrorEv indicates a mismatch in PyTorch's C++ API.
+
+ROOT CAUSE:
+Custom CUDA extensions (diff-gaussian-rasterization, simple-knn, kaolin) were 
+compiled against one version of PyTorch, but a different PyTorch version was 
+loaded at runtime, causing binary incompatibility.
+
+SOLUTION IMPLEMENTED:
+1. Complete cleanup of all previously compiled extensions
+2. Force reinstallation of PyTorch to match Colab's CUDA version (12.1)
+3. Rebuild all CUDA extensions from scratch with the correct PyTorch version
+4. Removed PyTorch3D dependency (functions replaced with native PyTorch)
+
+KEY NOTEBOOK CHANGES:
+- Added cleanup cell to remove conflicting cached builds
+- Added PyTorch reinstallation cell for CUDA 12.1 compatibility
+- Removed PyTorch3D installation (no longer needed)
+- Consolidated package installations
+- Added descriptive markdown cells for each step
+- Improved error reporting in verification cell
+- Added training command reference at the end
+
+EXECUTION ORDER:
+Run cells sequentially from top to bottom:
+1. GPU check
+2. Mount Google Drive
+3. Clone repository
+4. Install base packages
+5. Clean previous builds (CRITICAL)
+6. Reinstall PyTorch (CRITICAL)
+7. Fix simple-knn source code
+8. Build diff-gaussian-rasterization
+9. Build simple-knn
+10. Verify imports
+11. Create directories
+
+CRITICAL STEPS:
+- Cell 10 (cleanup): Removes all conflicting builds
+- Cell 12 (PyTorch reinstall): Ensures ABI compatibility
+- Must run cells in order - do not skip cleanup steps
+
+IF ERRORS OCCUR:
+1. Check error message in verification cell
+2. Rerun the specific build cell that failed
+3. If persistent errors, restart runtime and rerun from beginning
+4. Ensure GPU is enabled in Colab (Runtime > Change runtime type > GPU)
+
+WHAT WAS CHANGED IN CODEBASE:
+- meshhead_trainer.py: Added custom so3_exponential_map function
+- mesh_head.py: Added custom knn_points, so3_exponential_map, quaternion_to_matrix
+- simple_knn.cu: Added #include <cfloat> for FLT_MAX
+
+These changes are already in your local codebase and will be cloned to Colab.
+
+TRAINING AFTER SETUP:
+Once all cells run successfully, you can start training:
+
+For MeshHead:
+  python train_meshhead.py --img_dir /path/to/images --checkpoint_path /path/to/save
+
+For GazeGaussian:
+  python train.py -s /path/to/dataset -m /path/to/model
+
+NOTES:
+- PyTorch3D is NOT required (replaced with native PyTorch)
+- Kaolin IS required for MeshHead training (mesh/tetrahedral operations)
+- All checkpoints should be saved to /content/drive/MyDrive/ for persistence
+- Colab sessions timeout after inactivity - save work frequently
+- Kaolin installation takes 10-15 minutes (compiling CUDA kernels)
