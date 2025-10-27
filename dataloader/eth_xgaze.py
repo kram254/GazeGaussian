@@ -356,21 +356,22 @@ class GazeDataset(Dataset):
                 self.hdfs[num_i].close()
                 self.hdfs[num_i] = None
         
-        target_file = f"configs/config_files/{self.dataset_name}evaluation_target_single_subject.txt"
-        if not os.path.exists(target_file):
-            raise FileNotFoundError(
-                f"Evaluation target file not found: {target_file}\n"
-                "This file should be included in the config_files directory.\n"
-                "Please ensure config_files are properly downloaded."
-            )
-        self.target_idx = np.loadtxt(target_file, dtype=int)
-        if sub_folder == "val":
-            new_idx_to_kv = []
-            self.target_dict = {}
-            for idx_to_kv, target_idx in zip(self.idx_to_kv, self.target_idx):
-                new_idx_to_kv.append((idx_to_kv[0], target_idx))
-                self.target_dict[(idx_to_kv[0], target_idx)] = idx_to_kv[1]
-            self.idx_to_kv = new_idx_to_kv
+        if self.evaluate == "landmark":
+            target_file = f"configs/config_files/{self.dataset_name}evaluation_target_single_subject.txt"
+            if not os.path.exists(target_file):
+                raise FileNotFoundError(
+                    f"Evaluation target file not found: {target_file}\n"
+                    "This file should be included in the config_files directory.\n"
+                    "Please ensure config_files are properly downloaded."
+                )
+            self.target_idx = np.loadtxt(target_file, dtype=int)
+            if sub_folder == "val":
+                new_idx_to_kv = []
+                self.target_dict = {}
+                for idx_to_kv, target_idx in zip(self.idx_to_kv, self.target_idx):
+                    new_idx_to_kv.append((idx_to_kv[0], target_idx))
+                    self.target_dict[(idx_to_kv[0], target_idx)] = idx_to_kv[1]
+                self.idx_to_kv = new_idx_to_kv
         self.is_target = False
 
         self.hdf = None
@@ -420,7 +421,7 @@ class GazeDataset(Dataset):
             flag = True
             while flag:
                 key, idx = self.idx_to_kv[idx_input]
-                if self.is_target:
+                if self.is_target and self.evaluate == "landmark":
                     idx = self.target_dict[(key, idx)]
 
                 self.hdf = h5py.File(
@@ -439,9 +440,10 @@ class GazeDataset(Dataset):
                     flag = False
         else:
             key, idx = self.idx_to_kv[idx_input]
-            target_idx = self.target_dict[(key, idx)]
-            if self.is_target:
-                idx = self.target_dict[(key, idx)]
+            if self.evaluate == "landmark":
+                target_idx = self.target_dict[(key, idx)]
+                if self.is_target:
+                    idx = self.target_dict[(key, idx)]
             self.hdf = h5py.File(
                 os.path.join(self.file_path_list[key]),
                 "r",

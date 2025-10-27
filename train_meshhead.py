@@ -40,13 +40,13 @@ def main():
     from dataloader.eth_xgaze import get_train_loader, get_val_loader
 
     train_data_loader = get_train_loader(
-        opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate="landmark", is_shuffle=True, dataset_name=opt.dataset_name
+        opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate=None, is_shuffle=True, dataset_name=opt.dataset_name
     )
     
     valid_data_loader = None
     if opt.early_stopping:
         valid_data_loader = get_val_loader(
-            opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate="landmark", dataset_name=opt.dataset_name
+            opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate=None, dataset_name=opt.dataset_name
         )
 
     recorder = MeshHeadTrainRecorder(opt)
