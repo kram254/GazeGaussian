@@ -42,7 +42,7 @@ trans = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 
 def dataset_name_parser(dataset_name):
     if dataset_name == "eth_xgaze":
-        return "xgaze_"
+        return ""
     elif dataset_name == "columbia":
         return "columbia_"
     elif dataset_name == "gaze_capture":
