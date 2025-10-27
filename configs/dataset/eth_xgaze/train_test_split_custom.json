@@ -1,0 +1,46 @@
+{
+  "train": [
+    "xgaze_subject0012.h5",
+    "xgaze_subject0022.h5",
+    "xgaze_subject0025.h5",
+    "xgaze_subject0047.h5",
+    "xgaze_subject0054.h5",
+    "xgaze_subject0074.h5",
+    "xgaze_subject0086.h5",
+    "xgaze_subject0094.h5",
+    "xgaze_subject0096.h5",
+    "xgaze_subject0097.h5",
+    "xgaze_subject0110.h5",
+    "xgaze_subject0113.h5",
+    "xgaze_subject0115.h5",
+    "xgaze_subject0116.h5",
+    "xgaze_subject0119.h5",
+    "xgaze_subject0137.h5",
+    "xgaze_subject0140.h5",
+    "xgaze_subject0141.h5",
+    "xgaze_subject0143.h5",
+    "xgaze_subject0144.h5",
+    "xgaze_subject0145.h5",
+    "xgaze_subject0146.h5",
+    "xgaze_subject0147.h5",
+    "xgaze_subject0148.h5"
+  ],
+  "val": [
+    "xgaze_subject0149.h5",
+    "xgaze_subject0150.h5",
+    "xgaze_subject0151.h5",
+    "xgaze_subject0152.h5",
+    "xgaze_subject0153.h5",
+    "xgaze_subject0154.h5"
+  ],
+  "val_gaze": [
+    "xgaze_subject0149.h5",
+    "xgaze_subject0150.h5",
+    "xgaze_subject0151.h5",
+    "xgaze_subject0152.h5",
+    "xgaze_subject0153.h5",
+    "xgaze_subject0154.h5"
+  ],
+  "test": [],
+  "test_specific": []
+}
