@@ -328,7 +328,7 @@ class GazeDataset(Dataset):
                 ]
         else:
             print("load the file: ", index_file[0])
-            self.idx_to_kv = np.loadtxt(index_file[0], dtype=np.int)
+            self.idx_to_kv = np.loadtxt(index_file[0], dtype=int)
 
 
         init_sel = 0
@@ -363,7 +363,7 @@ class GazeDataset(Dataset):
                 "This file should be included in the config_files directory.\n"
                 "Please ensure config_files are properly downloaded."
             )
-        self.target_idx = np.loadtxt(target_file, dtype=np.int)
+        self.target_idx = np.loadtxt(target_file, dtype=int)
         if sub_folder == "val":
             new_idx_to_kv = []
             self.target_dict = {}
