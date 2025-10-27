@@ -28,11 +28,15 @@ class BaseOptions(object):
         self.deform_scale = 0.3              # scale factor for deformation
         self.subdivide = False               # subdivide the tetmesh (resolution: 128 --> 256) or not3
 
-        self.lr_net = 1e-3                                   # learning rate for models and networks
-        self.lr_lmk = 1e-4                                   # learning rate for 3D landmarks
+        self.lr_net = 1e-3
+        self.lr_lmk = 1e-4
         self.num_epochs = 10
+        
+        self.early_stopping = True
+        self.patience = 5
+        self.min_delta = 1e-4
 
-        self.load_meshhead_checkpoint = ""     # load mesh head checkpoint or not
+        self.load_meshhead_checkpoint = ""
 
         self.logdir = 'work_dirs'
         self.name = 'meshhead_debug'

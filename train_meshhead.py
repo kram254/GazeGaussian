@@ -42,6 +42,12 @@ def main():
     train_data_loader = get_train_loader(
         opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate="landmark", is_shuffle=True, dataset_name=opt.dataset_name
     )
+    
+    valid_data_loader = None
+    if opt.early_stopping:
+        valid_data_loader = get_val_loader(
+            opt, data_dir = opt.img_dir, batch_size = opt.batch_size, num_workers = opt.num_workers, evaluate="landmark", dataset_name=opt.dataset_name
+        )
 
     recorder = MeshHeadTrainRecorder(opt)
     trainer = MeshHeadTrainer(opt, recorder, train_data_loader.dataset.init_landmarks_3d_neutral)
@@ -50,7 +56,7 @@ def main():
     trainer.train(
         train_data_loader=train_data_loader,
         n_epochs=opt.num_epochs,
-        valid_data_loader=None,
+        valid_data_loader=valid_data_loader,
     )
 
 

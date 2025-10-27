@@ -75,6 +75,10 @@ class MeshHeadTrainRecorder():
             result = np.hstack((image, render_image, render_normal, render_depths))
             cv2.imwrite('%s/%06d.jpg' % (self.result_path, log_data['iter']), result)
 
+    def save_checkpoint(self, state_dict):
+        checkpoint_file = os.path.join(self.checkpoint_path, 'meshhead.pth')
+        torch.save(state_dict, checkpoint_file)
+        logging.getLogger('gaze').info(f'Checkpoint saved to {checkpoint_file}')
 
     def print_info(self, info):
         logging.getLogger('gaze').info(info)
