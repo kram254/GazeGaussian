@@ -4,3 +4,6 @@ CUDA_VISIBLE_DEVICES=$1 python train_meshhead.py \
 --img_dir './data/ETH-XGaze' \
 --num_epochs 10 \
 --num_workers 8 \
+--early_stopping \
+--patience 5 \
+--dataset_name 'eth_xgaze'
