@@ -5,6 +5,7 @@ import numpy as np
 import kaolin
 import tqdm
 import time
+import urllib.request
 
 def knn_points(p1, p2, K=1):
     dist = torch.cdist(p1, p2)
@@ -104,14 +105,20 @@ class MeshHeadModule(nn.Module):
 
         tets_data_path = 'configs/config_models/tets_data.npz'
         if not os.path.exists(tets_data_path):
-            raise FileNotFoundError(
-                f"Critical file missing: {tets_data_path}\n"
-                "Please download it from HuggingFace:\n"
-                "  cd configs\n"
-                "  wget https://huggingface.co/ucwxb/GazeGaussian/resolve/main/config_models.zip\n"
-                "  unzip config_models.zip\n"
-                "Or follow the README instructions."
-            )
+            print(f"Downloading tets_data.npz to {tets_data_path}...")
+            os.makedirs('configs/config_models', exist_ok=True)
+            url = 'https://huggingface.co/ucwxb/GazeGaussian/resolve/main/tets_data.npz'
+            try:
+                urllib.request.urlretrieve(url, tets_data_path)
+                print(f"✓ Successfully downloaded tets_data.npz")
+            except Exception as e:
+                raise FileNotFoundError(
+                    f"Failed to download {tets_data_path}\n"
+                    f"Error: {e}\n"
+                    "Please manually download from:\n"
+                    "  https://huggingface.co/ucwxb/GazeGaussian/resolve/main/config_models.zip\n"
+                    "  Extract to configs/config_models/"
+                )
         tets_data = np.load(tets_data_path)
         self.register_buffer('tet_verts', torch.from_numpy(tets_data['tet_verts']))
         self.register_buffer('tets', torch.from_numpy(tets_data['tets']))
