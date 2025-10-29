@@ -169,6 +169,57 @@ class GazeGaussianTrainer():
             if self.is_gradual_loss:
                 self.loss_utils.increase_eye_importance()
 
+    def train_with_optuna(self, train_data_loader, n_epochs, valid_data_loader=None, optuna_callback=None):
+        """Run model training with Optuna pruning support"""
+        self.prepare_optimizer_opt(len(train_data_loader.dataset))
+
+        if valid_data_loader is None:
+            raise ValueError("valid_data_loader is required for Optuna optimization")
+
+        best_val_loss = float('inf')
+
+        for epoch in range(n_epochs):
+            self.train_epoch(train_data_loader, epoch)
+            
+            if self.is_gradual_loss:
+                self.loss_utils.increase_eye_importance()
+            
+            val_loss = self.validate_epoch(valid_data_loader)
+            
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+            
+            if optuna_callback is not None:
+                optuna_callback(epoch, val_loss)
+
+        return best_val_loss
+
+    def validate_epoch(self, data_loader):
+        """Validate for one epoch and return average loss"""
+        self.net.eval()
+        total_loss = 0.0
+        num_batches = 0
+
+        with torch.no_grad():
+            for data in data_loader:
+                data = self.prepare_data(data)
+                data = self.build_code_and_cam(data["idx_input"], data)
+                data = self.net(data)
+
+                batch_loss_dict = self.loss_utils.calc_total_loss(
+                    data,
+                    epoch=0,
+                    batch_num=0,
+                    discriminator=None,
+                )
+
+                total_loss += batch_loss_dict["total_loss"].item()
+                num_batches += 1
+
+        self.net.train()
+        avg_loss = total_loss / num_batches if num_batches > 0 else float('inf')
+        return avg_loss
+
 
     def prepare_data(self, data):
         batch_size = data['image'].shape[0]

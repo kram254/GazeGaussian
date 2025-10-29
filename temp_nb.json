@@ -1,0 +1,19 @@
+{
+  "cells": [],
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "gpuType": "A100"
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    },
+    "accelerator": "GPU"
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}

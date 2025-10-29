@@ -321,3 +321,99 @@ class MeshHeadTrainer():
                         break
         
         self.recorder.print_info('Training finished.')
+
+    def train_with_optuna(self, train_data_loader, n_epochs, valid_data_loader=None, optuna_callback=None):
+        """Run model training with Optuna pruning support"""
+        if valid_data_loader is None:
+            raise ValueError("valid_data_loader is required for Optuna optimization")
+
+        best_val_loss = float('inf')
+
+        for epoch in range(n_epochs):
+            train_tq = tqdm(train_data_loader)
+            for idx, data in enumerate(train_tq):
+                to_cuda = ['image', 'face_mask', 'left_eye_mask', 'right_eye_mask', 'ldms', 'ldms_3d', 'cam_ind']
+                for data_item in to_cuda:
+                    data[data_item] = data[data_item].to(device=self.device)
+                    if 'image' in data_item or 'mask' in data_item:
+                        data[data_item] = data[data_item].unsqueeze(1)
+                
+                nl3dmm_to_cuda = ['code', 'intrinsics', "extrinsics", 'pitchyaw', 'head_pose', 'pose', 'scale', \
+                                  'iden_code', 'expr_code']
+                for data_item in nl3dmm_to_cuda:
+                    data['nl3dmm_para_dict'][data_item] = data['nl3dmm_para_dict'][data_item].to(device=self.device)
+                    if 'intrinsics' in data_item or 'extrinsics' in data_item:
+                        data['nl3dmm_para_dict'][data_item] = data['nl3dmm_para_dict'][data_item].unsqueeze(1)
+
+                images = data['image'].permute(0, 1, 3, 4, 2)
+                masks = data['face_mask'].permute(0, 1, 3, 4, 2)
+                resolution = images.shape[2]
+
+                R = so3_exponential_map(data['nl3dmm_para_dict']['pose'][:, :3])
+                T = data['nl3dmm_para_dict']['pose'][:, 3:, None]
+                S = data['nl3dmm_para_dict']['scale'][:, :, None]
+                landmarks_3d_can = (torch.bmm(R.permute(0,2,1), (data['ldms_3d'].permute(0, 2, 1) - T)) / S).permute(0, 2, 1)
+
+                landmarks_3d_neutral = self.meshhead.get_landmarks()[None].repeat(data['ldms_3d'].shape[0], 1, 1)
+                data['landmarks_3d_neutral'] = landmarks_3d_neutral
+
+                data['nl3dmm_para_dict']['shape_code'] = (
+                    torch.cat(
+                        [
+                            data['nl3dmm_para_dict']['expr_code'],
+                            data['nl3dmm_para_dict']['iden_code']
+                        ],
+                        dim=-1,
+                    )
+                    .type(torch.FloatTensor)
+                    .to(self.device)
+                )
+
+                deform_data = {
+                    'shape_code': data['nl3dmm_para_dict']['shape_code'],
+                    'query_pts': landmarks_3d_neutral
+                }
+                deform_data = self.meshhead.deform(deform_data)
+                pred_landmarks_3d_can = deform_data['deformed_pts']
+                loss_def = F.mse_loss(pred_landmarks_3d_can, landmarks_3d_can)
+
+                deform_data = self.meshhead.query_sdf(deform_data)
+                sdf_landmarks_3d = deform_data['sdf']
+                loss_lmk = torch.abs(sdf_landmarks_3d[:, :, 0]).mean()
+
+                data = self.meshhead.reconstruct(data)
+                data = self.camera.render(data, resolution)
+                render_images = data['render_images']
+                render_soft_masks = data['render_soft_masks']
+                shape_deform = data['shape_deform']
+                pose_deform = data['pose_deform']
+                verts_list = data['verts_list']
+                faces_list = data['faces_list']
+
+                loss_rgb = F.l1_loss(render_images[:, :, :, :, 0:3], images * masks + 1-masks)
+                loss_sil = kaolin.metrics.render.mask_iou((render_soft_masks).reshape(-1, resolution, resolution), (masks).squeeze().reshape(-1, resolution, resolution))
+                loss_offset = (shape_deform ** 2).sum(-1).mean() + (pose_deform ** 2).sum(-1).mean()
+
+                loss_lap = 0.0
+                for b in range(len(verts_list)):
+                    loss_lap += laplace_regularizer_const(verts_list[b], faces_list[b])
+                
+                loss = loss_rgb * 1e0 + loss_sil * 1e-1 + loss_def * 1e-1 + loss_offset * 1e-2 + loss_lmk * 1e-1 + loss_lap * 1e2
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.meshhead.parameters(), max_norm=1.0)
+                self.optimizer.step()
+
+                train_tq.set_description(f'Epoch {epoch}, Iter {idx}, Loss {loss:.4f}')
+            
+            val_loss = self.validate(valid_data_loader)
+            logger.info(f'Epoch {epoch}: Validation Loss = {val_loss:.6f}')
+            
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+            
+            if optuna_callback is not None:
+                optuna_callback(epoch, val_loss)
+
+        return best_val_loss
